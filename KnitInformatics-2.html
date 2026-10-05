@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knit Reflection</title>
+<style>
+  :root { --bg:#F8F2FF; --ink:#724BA9; --ink-soft:#A085C8; --line:#D9C9EE; --card:#FFFFFF; --warn:#C23B5B; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 -apple-system,"Inter","Segoe UI",Roboto,sans-serif; }
+  .wrap { max-width:1120px; margin:0 auto; padding:20px 16px 56px; }
+  h1,h2 { font-family:Georgia,"Times New Roman",serif; font-style:italic; font-weight:600; margin:0; }
+  h1 { font-size:26px; } h2 { font-size:18px; margin-bottom:10px; }
+  header { display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .pill { display:inline-flex; align-items:center; gap:8px; padding:5px 12px; border:1px solid var(--line); border-radius:999px; background:var(--card); font-size:13px; font-weight:600; }
+  .dot { width:9px; height:9px; border-radius:50%; background:var(--ink-soft); }
+  .pill[data-mode=reflecting] .dot { background:#D9602B; } .pill[data-mode=revising] .dot, .pill[data-mode=replying] .dot { background:#E2B33B; animation:pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity:.3; } }
+  .bar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:16px; }
+  .seg { display:inline-flex; border:1px solid var(--line); border-radius:10px; overflow:hidden; background:var(--card); }
+  .seg button { border:0; background:transparent; color:var(--ink); padding:8px 14px; font:inherit; font-size:14px; cursor:pointer; }
+  .seg button[aria-pressed=true] { background:var(--ink); color:#fff; }
+  button.btn { font:inherit; font-size:14px; font-weight:600; padding:8px 14px; border-radius:10px; border:1px solid var(--ink); background:var(--card); color:var(--ink); cursor:pointer; }
+  button.btn.primary { background:var(--ink); color:#fff; }
+  button.btn:disabled { opacity:.45; cursor:default; }
+  button.link { border:0; background:none; color:var(--ink-soft); font:inherit; font-size:13px; text-decoration:underline; cursor:pointer; padding:4px; }
+  .grid { display:grid; gap:16px; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); }
+  @media (max-width:880px) { .grid { grid-template-columns:minmax(0,1fr); } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:16px; }
+  .col > .card:last-child { margin-bottom:0; }
+  canvas { display:block; width:100%; border-radius:8px; background:#EFE6FA; }
+  .meta { font-size:13px; color:var(--ink-soft); margin-top:8px; display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+  .meta b { color:var(--ink); }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  .chip { display:inline-flex; align-items:center; gap:6px; font-size:13px; padding:4px 10px; border:1px solid var(--line); border-radius:999px; background:#fff; color:var(--ink); cursor:pointer; }
+  .chip[aria-pressed=true] { border-color:var(--ink); background:#F3EBFF; }
+  .chip i { width:10px; height:10px; border-radius:50%; display:inline-block; }
+  .stitchbox { border:2px dashed var(--ink-soft); border-radius:12px; padding:12px 14px; margin:12px 0; font-family:Georgia,serif; font-style:italic; font-size:18px; line-height:1.4; }
+  .tag { display:inline-block; font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:2px 9px; border-radius:999px; background:#F3EBFF; border:1px solid var(--line); }
+  .thread { display:flex; flex-direction:column; gap:8px; margin:12px 0; max-height:340px; overflow-y:auto; padding:2px; }
+  .bub { max-width:92%; padding:10px 13px; border-radius:14px; line-height:1.45; overflow-wrap:anywhere; }
+  .bub.agent { align-self:flex-start; border:2px dashed var(--ink-soft); font-family:Georgia,serif; font-style:italic; font-size:17px; }
+  .bub.me { align-self:flex-end; background:#F3EBFF; border:1px solid var(--line); font-size:15px; }
+  .bub .ack { display:block; font:14px/1.4 -apple-system,"Inter",sans-serif; font-style:normal; color:var(--ink-soft); margin-bottom:4px; }
+  .dots { animation:pulse 1s infinite; letter-spacing:.2em; }
+  .reading { background:#FBF8FF; border-left:3px solid var(--ink); padding:8px 12px; border-radius:0 10px 10px 0; margin:10px 0; }
+  .reading small { display:block; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-soft); font-weight:700; margin-bottom:2px; }
+  .say { display:flex; gap:8px; align-items:flex-end; margin-top:8px; } .say textarea { min-height:52px; }
+  details { margin-top:10px; font-size:14px; } summary { cursor:pointer; color:var(--ink-soft); }
+  textarea { width:100%; min-height:72px; font:inherit; font-size:14px; padding:8px 10px; border:1px solid var(--line); border-radius:10px; color:var(--ink); background:#fff; resize:vertical; }
+  .row { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+  .muted { color:var(--ink-soft); font-size:14px; }
+  .log { font:12px/1.5 ui-monospace,Menlo,monospace; white-space:pre-wrap; word-break:break-word; color:var(--ink); }
+  .banner { background:#FDE9EE; border:1px solid #F3B8C6; color:#8E2644; padding:10px 14px; border-radius:10px; margin-bottom:14px; font-size:14px; display:none; }
+  .skeleton { height:14px; border-radius:7px; background:linear-gradient(90deg,#EFE6FA,#F8F2FF,#EFE6FA); background-size:200% 100%; animation:sh 1.2s infinite; margin:10px 0; }
+  @keyframes sh { to { background-position:-200% 0; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Knit Reflection</h1>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span class="pill" id="trackPill"><span class="dot"></span><span id="trackTxt">tracking</span></span>
+      <span class="pill" id="modePill" data-mode="ambient"><span class="dot"></span><span id="modeTxt">Stitching quietly</span></span>
+    </div>
+  </header>
+  <div class="banner" id="banner"></div>
+
+  <div class="bar">
+    <div class="seg" id="winSeg" role="group" aria-label="Time window">
+      <button data-w="day" aria-pressed="false">Day</button>
+      <button data-w="week" aria-pressed="true">Week</button>
+      <button data-w="month" aria-pressed="false">Month</button>
+    </div>
+    <button class="btn primary" id="openBtn">Open reflection</button>
+    <button class="btn" id="demoBtn" style="display:none">Load simulated week</button>
+    <button class="btn" id="pauseBtn">Pause tracking</button>
+    <button class="link" id="forgetBtn">Forget this thread</button>
+    <button class="link" id="forgetAllBtn">Forget everything</button>
+  </div>
+
+  <div class="grid">
+    <div class="col">
+      <div class="card">
+        <h2>What you stayed on longest</h2>
+        <canvas id="knit" height="320" aria-label="Knitted remake of the page you stayed on longest"></canvas>
+        <div class="meta"><span id="topMeta">No traces yet.</span><button class="link" id="origBtn" style="display:none">Hold to see the original</button></div>
+        <img id="orig" alt="" style="display:none;width:100%;border-radius:8px;margin-top:8px">
+      </div>
+      <div class="card">
+        <h2>Your fabric</h2>
+        <canvas id="fabric" height="360" aria-label="Threads of attention over time"></canvas>
+        <div class="chips" id="chips"></div>
+        <div class="meta"><span>Thicker thread = more time. Loose stitching = a reading you haven't confirmed.</span></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="card" id="reflCard">
+        <h2>Reflection</h2>
+        <div id="reflBody"></div>
+      </div>
+      <div class="card">
+        <h2>What the agent did</h2>
+        <details open><summary>Initiative policy</summary><p class="muted" id="policyTxt">—</p></details>
+        <details><summary>Tool calls</summary><div class="log" id="logTxt">—</div></details>
+        <details><summary>State transitions</summary><div class="log" id="transTxt">—</div></details>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const qs = new URLSearchParams(location.search);
+const PREVIEW = qs.has('preview');
+const API = (qs.get('api') || '').replace(/\/$/, '');
+if (qs.get('token')) sessionStorage.setItem('kr_token', qs.get('token'));
+const TOKEN = sessionStorage.getItem('kr_token') || '';
+const $ = id => document.getElementById(id);
+let W = 'week', S = null, busy = false, focus = null, lastShot = null, formMode = null, knitToken = 0, pendingReply = '', more = false, lastKey = '';
+
+/* ---------- API ---------- */
+async function api(path, opts = {}) {
+  if (PREVIEW) return previewApi(path, opts);
+  const r = await fetch(API + path, { ...opts, headers: { 'Content-Type': 'application/json', 'X-Token': TOKEN } });
+  if (!r.ok) throw new Error((await r.text()) || r.status);
+  return r.json();
+}
+const post = (path, body) => api(path, { method: 'POST', body: JSON.stringify(body || {}) });
+function banner(msg) { const b = $('banner'); b.textContent = msg || ''; b.style.display = msg ? 'block' : 'none'; }
+
+async function refresh() {
+  if (busy) return;
+  try { S = await api(`/state?window=${W}&tz=${new Date().getTimezoneOffset()}`); banner(''); render(); }
+  catch (e) { banner("Can't reach the agent. Is the Colab notebook running, and is the token right?"); }
+}
+async function act(fn) {
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();   // let the card re-render even if the text box had focus
+  const wasReply = !!pendingReply;
+  busy = true; render();
+  let restore = '';
+  try { S = await fn(); banner(''); }
+  catch (e) { restore = pendingReply; banner('Something went wrong: ' + String(e.message).slice(0, 160)); }
+  busy = false; formMode = null; pendingReply = ''; more = false; render();
+  if (restore && $('say')) $('say').value = restore;
+  else if (wasReply && $('say')) $('say').focus({ preventScroll: true });
+  const th = $('thread'); if (th && th.children.length > 2) th.lastElementChild.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+/* ---------- knit stitch rendering ---------- */
+function stitch(ctx, x, y, w, h, c, alpha = 1) {
+  const [r, g, b] = c, k = v => Math.max(0, Math.min(255, v | 0));
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = `rgb(${k(r*.5)},${k(g*.5)},${k(b*.5)})`; ctx.fillRect(x, y, w, h);
+  ctx.lineCap = 'round'; const lw = w * .38;
+  const leg = dx => { ctx.beginPath();
+    ctx.moveTo(x + w*.16 + dx, y + h*.10); ctx.quadraticCurveTo(x + w*.22 + dx, y + h*.62, x + w*.5 + dx, y + h*.92);
+    ctx.moveTo(x + w*.84 + dx, y + h*.10); ctx.quadraticCurveTo(x + w*.78 + dx, y + h*.62, x + w*.5 + dx, y + h*.92); };
+  ctx.strokeStyle = `rgb(${r|0},${g|0},${b|0})`; ctx.lineWidth = lw; leg(0); ctx.stroke();
+  ctx.strokeStyle = `rgb(${k(r*1.2+18)},${k(g*1.2+18)},${k(b*1.2+18)})`; ctx.lineWidth = lw * .3; leg(-lw*.12); ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+const hexRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const rnd = (a, b, c) => { let x = Math.sin(a * 127.1 + b * 311.7 + c * 74.7) * 43758.5453; return x - Math.floor(x); };
+const loadImg = src => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+
+function sizeCanvas(cv, cssH) {
+  const dpr = window.devicePixelRatio || 1, cssW = cv.clientWidth || 560;
+  cv.width = Math.round(cssW * dpr); cv.height = Math.round(cssH * dpr); cv.style.height = cssH + 'px';
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); return { ctx, cssW };
+}
+
+async function knitImage(src, domain) {
+  const cv = $('knit'), token = ++knitToken;
+  let img = null; if (src) { try { img = await loadImg(src); } catch (e) {} }
+  const cssW = cv.clientWidth || 560, cols = 64, cw = cssW / cols, ch = cw * 1.18;
+  const aspect = img ? img.height / img.width : .62;
+  const rows = Math.max(10, Math.round(cssW * aspect / ch));
+  const { ctx } = sizeCanvas(cv, rows * ch);
+  const off = document.createElement('canvas'); off.width = cols; off.height = rows;
+  const o = off.getContext('2d');
+  if (img) o.drawImage(img, 0, 0, cols, rows);
+  else { const c = S.fabric.threads.find(t => t.domain === domain); const col = hexRgb(c ? c.color : '#724BA9');
+    o.fillStyle = `rgb(${col})`; o.fillRect(0, 0, cols, rows); }
+  const d = o.getImageData(0, 0, cols, rows).data;
+  const q = v => Math.round(v / 255 * 8) * 31.9;
+  const drawRow = r => { for (let c = 0; c < cols; c++) { const i = (r * cols + c) * 4;
+      stitch(ctx, c * cw, r * ch, cw, ch, [q(d[i]), q(d[i+1]), q(d[i+2])]); } };
+  ctx.clearRect(0, 0, cssW, rows * ch);
+  if (lastShot === src) { for (let r = 0; r < rows; r++) drawRow(r); return; }
+  lastShot = src; let r = rows - 1;                        // knit from the bottom up, like real fabric
+  const step = () => { if (token !== knitToken || r < 0) return; for (let k = 0; k < 2 && r >= 0; k++) drawRow(r--); requestAnimationFrame(step); };
+  step();
+}
+
+function drawFabric() {
+  const F = S.fabric, cv = $('fabric'), n = F.labels.length, T = Math.max(1, F.threads.length);
+  const cw = 7, ch = 8, rowsPer = 4, gap = 6, left = 44, pad = 4;
+  const cssH = pad * 2 + n * (rowsPer * ch + gap);
+  const { ctx, cssW } = sizeCanvas(cv, cssH);
+  ctx.clearRect(0, 0, cssW, cssH);
+  const bandW = (cssW - left) / T, sCols = Math.max(2, Math.floor(bandW / cw) - 1);
+  const mx = Math.max(1, ...F.threads.flatMap(t => t.dwell));
+  const R = S.reflection, hi = R && R.domain ? { domain: R.domain, status: R.status, conf: R.confidence } : null;
+  ctx.font = '11px -apple-system, sans-serif'; ctx.fillStyle = '#A085C8'; ctx.textBaseline = 'middle';
+  for (let i = 0; i < n; i++) {
+    const y0 = pad + i * (rowsPer * ch + gap);
+    ctx.fillStyle = '#A085C8'; ctx.fillText(F.labels[i], 0, y0 + rowsPer * ch / 2);
+    for (let t = 0; t < T; t++) {
+      const th = F.threads[t]; if (!th) continue;
+      const bx = left + t * bandW, dim = focus && focus !== th.domain;
+      for (let r = 0; r < rowsPer; r++) for (let c = 0; c < sCols; c++)               // ground fabric
+        stitch(ctx, bx + c * cw + (bandW - sCols * cw) / 2, y0 + r * ch, cw, ch, [226, 214, 242], .35);
+      const dw = th.dwell[i]; if (!dw) continue;
+      const cnt = Math.max(2, Math.round(Math.sqrt(dw / mx) * sCols)), x0 = bx + (bandW - cnt * cw) / 2;
+      const col = hexRgb(th.color), mine = hi && hi.domain === th.domain;
+      const loose = mine && R.status === 'pending' && R.confidence !== 'high', faded = mine && R.status === 'rejected';
+      for (let r = 0; r < rowsPer; r++) for (let c = 0; c < cnt; c++) {
+        if (loose && rnd(i, t * 31 + r, c) < .24) continue;
+        const jx = loose ? (rnd(r, c, i) - .5) * 3 : 0, jy = loose ? (rnd(c, i, r) - .5) * 2.5 : 0;
+        stitch(ctx, x0 + c * cw + jx, y0 + r * ch + jy, cw, ch, col, dim ? .18 : (faded ? .35 : 1));
+      }
+    }
+  }
+  $('chips').innerHTML = F.threads.map(t =>
+    `<button class="chip" data-d="${t.domain}" aria-pressed="${focus === t.domain}"><i style="background:${t.color}"></i>${t.domain} · ${Math.round(t.total / 60)} min</button>`).join('');
+  document.querySelectorAll('.chip').forEach(b => b.onclick = () => { focus = focus === b.dataset.d ? null : b.dataset.d; drawFabric(); $('forgetBtn').style.display = focus ? '' : 'none'; });
+}
+
+/* ---------- panels ---------- */
+const MODE = { ambient: 'Stitching quietly', reflecting: 'Reflecting', revising: 'Re-weaving', replying: 'Listening' };
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const CONF = { low: 'Loose', medium: 'Snug', high: 'Firm' };
+
+function bubbles(R, extra) {
+  const th = (R.thread && R.thread.length) ? R.thread : [{ role: 'agent', question: R.question }];
+  let h = th.map(t => t.role === 'user' ? `<div class="bub me">${esc(t.text)}</div>`
+    : `<div class="bub agent">${t.ack ? `<span class="ack">${esc(t.ack)}</span>` : ''}${esc(t.question || (t.ready ? 'Does this capture it?' : ''))}</div>`).join('');
+  if (extra) h += `<div class="bub me">${esc(extra)}</div><div class="bub agent"><span class="dots">…</span></div>`;
+  return `<div class="thread" id="thread">${h}</div>`;
+}
+
+function reflHTML() {
+  const R = S.reflection;
+  if (pendingReply && R && R.thread)
+    return `<p><span class="tag">${CONF[R.confidence] || R.confidence} stitching</span> <b>${esc(R.topic_label)}</b></p><div class="reading"><small>Our reading so far</small>${esc(R.insight)}</div>` + bubbles(R, pendingReply);
+  if (busy || S.mode === 'revising') return '<p class="muted">Reading the weave…</p><div class="skeleton"></div><div class="skeleton" style="width:70%"></div>';
+  if (!S.has_data) return '<p class="muted">No traces in this window yet. The extension adds a stitch every time you spend a few seconds on a page.</p>';
+  if (!R) return `<p class="muted">The agent is staying quiet until you ask. Open a reflection when you want to hear what it noticed.</p>`;
+  if (R.status === 'waiting') return `<p><span class="tag">Waiting</span></p><p>${esc(R.message)}</p><div class="row"><button class="btn" data-a="close">OK</button></div>`;
+  const talked = (R.thread || []).some(t => t.role === 'user');
+  const ev = `<details><summary>Why am I seeing this?</summary><p>${esc(R.evidence)}.</p><p class="muted">Source: ${R.source === 'fallback' ? 'built-in rule (the model did not return a valid reading)' : 'agent reading of counted evidence'}.</p></details>`;
+  const head = `<p><span class="tag">${CONF[R.confidence] || R.confidence} stitching</span> <b>${esc(R.topic_label)}</b></p>`;
+  const saw = R.what_i_saw && !talked ? `<p class="muted">On the page: ${esc(R.what_i_saw)}</p>` : '';
+  if (R.status === 'accepted' || R.status === 'edited')
+    return head.replace(/(Loose|Snug|Firm) stitching/, 'Firm stitching') + `<div class="reading"><small>${talked ? 'Our reading' : 'Your reading'}</small>${esc(R.insight)}</div>`
+      + `<p class="muted">${R.status === 'edited' ? 'Rewritten by you.' : 'You confirmed this.'} The thread is now firm.</p>`
+      + (talked ? `<details><summary>Our conversation</summary>${bubbles(R)}</details>` : '') + ev;
+  const reading = `<div class="reading"><small>${talked ? 'Our reading so far' : 'First reading'}</small>${esc(R.insight)}</div>`;
+  const wrapUp = R.ready && !more;
+  const form = formMode ? `<textarea id="note" placeholder="${formMode === 'reject' ? 'What is actually going on? The agent will treat this as true.' : ''}">${formMode === 'edit' ? esc(R.insight) : ''}</textarea>
+      <div class="row"><button class="btn primary" data-a="send">${formMode === 'reject' ? 'Send to the agent' : 'Save my version'}</button><button class="btn" data-a="cancel">Cancel</button></div>`
+    : (wrapUp ? '' : `<div class="say"><textarea id="say" rows="2" placeholder="Answer in your own words…"></textarea><button class="btn primary" data-a="say">Send</button></div>`)
+      + `<div class="row"><button class="btn ${wrapUp ? 'primary' : ''}" data-a="accept">${talked || R.ready ? 'Save our reading' : 'That fits'}</button><button class="btn" data-a="reject">Not quite…</button><button class="btn" data-a="edit">Edit</button>${wrapUp ? '<button class="link" data-a="more">Keep talking</button>' : ''}<button class="link" data-a="close">Not now</button></div>`;
+  return head + reading + saw + bubbles(R) + form + ev;
+}
+
+function render() {
+  if (!S) return;
+  const mode = busy && pendingReply ? 'replying' : (busy && S.mode === 'ambient' ? 'reflecting' : S.mode);
+  $('modePill').dataset.mode = mode; $('modeTxt').textContent = MODE[mode];
+  $('trackTxt').textContent = S.tracking.paused ? 'tracking paused' : `tracking · ${S.tracking.pages} pages`;
+  $('pauseBtn').textContent = S.tracking.paused ? 'Resume tracking' : 'Pause tracking';
+  document.querySelectorAll('#winSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.w === W));
+  $('openBtn').style.display = S.mode === 'ambient' ? '' : 'none'; $('openBtn').disabled = busy || !S.has_data;
+  $('demoBtn').style.display = S.has_data || PREVIEW ? 'none' : '';
+  $('forgetBtn').style.display = focus ? '' : 'none';
+  const T = S.top_page;
+  $('topMeta').innerHTML = T ? `<span><b>${esc(T.domain)}</b> · ${esc(T.title)} · ${Math.round(T.dwell_s / 60 * 10) / 10} min</span>` : 'No traces yet.';
+  $('origBtn').style.display = T && T.shot ? '' : 'none';
+  if (T) knitImage(T.shot, T.domain); else { sizeCanvas($('knit'), 120); lastShot = null; }
+  drawFabric();
+  const key = JSON.stringify([S.mode, S.reflection, S.has_data, busy, pendingReply, more, formMode]);
+  if (key !== lastKey && (!document.activeElement || !['note', 'say'].includes(document.activeElement.id))) { lastKey = key; $('reflBody').innerHTML = reflHTML(); bindRefl(); }   // only redraw when something changed, so open sections stay open
+  $('policyTxt').textContent = S.policy ? `${S.policy.should_ask ? 'May ask' : 'Stays quiet'}: ${S.policy.reason}` : 'The policy runs when you open a reflection.';
+  $('logTxt').textContent = S.log.length ? S.log.join('\n') : 'No tool calls yet.';
+  $('transTxt').textContent = S.transitions.length ? S.transitions.map(t => `${t.from} —${t.event}→ ${t.to}`).join('\n') : 'No transitions yet.';
+}
+
+function bindRefl() {
+  $('reflBody').querySelectorAll('[data-a]').forEach(b => b.onclick = () => onAction(b.dataset.a));
+  const say = $('say'); if (say) say.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onAction('say'); } };
+}
+
+function onAction(a) {
+  if (a === 'accept') return act(() => post('/feedback', { action: 'accept', window: W }));
+  if (a === 'close') return act(() => post('/close'));
+  if (a === 'reject' || a === 'edit') { formMode = a; $('reflBody').innerHTML = reflHTML(); bindRefl(); const n = $('note'); if (n) n.focus(); return; }
+  if (a === 'cancel') { formMode = null; return render(); }
+  if (a === 'say') { const t = ($('say') || {}).value; if (!t || !t.trim()) return; pendingReply = t.trim(); return act(() => post('/reply', { text: pendingReply, window: W })); }
+  if (a === 'more') { more = true; $('reflBody').innerHTML = reflHTML(); bindRefl(); const sy = $('say'); if (sy) sy.focus(); return; }
+  if (a === 'send') { const note = $('note').value.trim(); if (!note) return; const action = formMode; return act(() => post('/feedback', { action, note, window: W })); }
+}
+
+$('openBtn').onclick = () => act(() => post('/reflect', { window: W }));
+$('demoBtn').onclick = () => act(async () => { await post('/demo'); return api(`/state?window=${W}&tz=${new Date().getTimezoneOffset()}`); });
+$('pauseBtn').onclick = () => act(async () => { await post('/pause', { paused: !S.tracking.paused }); return api(`/state?window=${W}&tz=${new Date().getTimezoneOffset()}`); });
+$('forgetBtn').onclick = () => { if (focus && confirm(`Delete every stored trace from ${focus}?`)) act(async () => { await post('/forget', { scope: 'domain', domain: focus }); focus = null; return api(`/state?window=${W}&tz=0`); }); };
+$('forgetAllBtn').onclick = () => { if (confirm('Delete all stored traces and screenshots?')) act(async () => { await post('/forget', { scope: 'all' }); focus = null; lastShot = null; return api(`/state?window=${W}&tz=0`); }); };
+document.querySelectorAll('#winSeg button').forEach(b => b.onclick = () => { W = b.dataset.w; lastShot = null; refresh(); });
+const hold = on => { $('orig').style.display = on && S.top_page && S.top_page.shot ? 'block' : 'none'; if (on && S.top_page) $('orig').src = S.top_page.shot; };
+['mousedown', 'touchstart'].forEach(e => $('origBtn').addEventListener(e, () => hold(true)));
+['mouseup', 'mouseleave', 'touchend'].forEach(e => $('origBtn').addEventListener(e, () => hold(false)));
+window.addEventListener('resize', () => { if (S) { lastShot = S.top_page && S.top_page.shot; render(); } });
+
+/* ---------- preview mode (?preview=1): no server, sample data ---------- */
+function previewShot() {
+  const c = document.createElement('canvas'); c.width = 360; c.height = 225; const x = c.getContext('2d');
+  x.fillStyle = '#F4ECE0'; x.fillRect(0, 0, 360, 225); x.fillStyle = '#fff'; x.fillRect(0, 0, 360, 26);
+  x.fillStyle = '#724BA9'; x.fillRect(14, 8, 76, 10); x.fillStyle = '#E8DCCD'; x.fillRect(20, 44, 170, 161);
+  x.fillStyle = '#D9602B'; x.beginPath(); x.roundRect(52, 72, 98, 106, 22); x.fill();
+  x.fillStyle = '#EE9660'; x.beginPath(); x.ellipse(101, 77, 49, 13, 0, 0, 7); x.fill();
+  x.strokeStyle = '#D9602B'; x.lineWidth = 10; x.beginPath(); x.arc(150, 120, 28, -Math.PI / 2, Math.PI / 2); x.stroke();
+  ['#2F5BA8', '#3E8E7E', '#E2B33B'].forEach((col, i) => { x.fillStyle = col; x.fillRect(62 + i * 30, 120, 20, 12); });
+  x.fillStyle = '#9682AF'; [130, 150, 100, 140, 90].forEach((w, i) => x.fillRect(210, 52 + i * 22, w * .9, 10));
+  x.fillStyle = '#2F5BA8'; x.beginPath(); x.roundRect(210, 170, 120, 28, 12); x.fill(); return c.toDataURL('image/jpeg', .9);
+}
+let PS = null;
+function previewBase() {
+  return { mode: 'ambient', window: W, has_data: true, tracking: { paused: false, pages: 74, domains: 5 },
+    top_page: { domain: 'etsy.com', title: 'Speckled glaze ceramic mug', dwell_s: 412, ts: '', shot: previewShot() },
+    fabric: { labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], threads: [
+      { domain: 'etsy.com', color: '#D9602B', total: 1040, dwell: [0, 60, 85, 270, 330, 0, 412] },
+      { domain: 'zillow.com', color: '#2F5BA8', total: 700, dwell: [90, 130, 40, 150, 120, 80, 90] },
+      { domain: 'arxiv.org', color: '#3E8E7E', total: 760, dwell: [140, 0, 180, 200, 0, 0, 240] },
+      { domain: 'github.com', color: '#C23B5B', total: 380, dwell: [60, 30, 90, 20, 70, 40, 70] },
+      { domain: 'nytimes.com', color: '#E2B33B', total: 210, dwell: [30, 25, 40, 30, 20, 35, 30] }] },
+    reflection: null, policy: null, log: [], transitions: [], sends_screenshot_to_model: true };
+}
+const PR = {
+  first: { status: 'pending', source: 'agent', pattern_id: 'rising:etsy.com', domain: 'etsy.com', topic_label: 'Ceramics', confidence: 'medium',
+    insight: 'It looks like you spent about 17 minutes on etsy.com in the second half of the week, up from about 1 minute before, mostly on mugs and bowls.',
+    question: 'What were you hoping to find in those mugs?', what_i_saw: 'an orange speckled mug with a blue stripe', evidence: '17 min in the second half of the window vs 1 min in the first', ready: false,
+    thread: [{ role: 'agent', question: 'What were you hoping to find in those mugs?' }] },
+  revised: { status: 'pending', source: 'agent', pattern_id: 'rising:etsy.com', domain: 'etsy.com', topic_label: 'Gift search', confidence: 'low',
+    insight: 'Thanks. So the mugs may be a gift search, which would explain the short burst of attention rather than a lasting interest.',
+    question: 'What made this mug the one you stayed on?', what_i_saw: 'an orange speckled mug', evidence: '17 min in the second half of the window vs 1 min in the first', ready: false,
+    thread: [{ role: 'agent', question: 'What made this mug the one you stayed on?' }] }
+};
+async function previewApi(path, opts) {
+  await new Promise(r => setTimeout(r, 450)); if (!PS) PS = previewBase();
+  const body = opts.body ? JSON.parse(opts.body) : {}; const tr = (f, e, t) => PS.transitions.push({ from: f, event: e, to: t });
+  if (path.startsWith('/reflect')) { tr('ambient', 'open_reflection', 'reflecting'); PS.mode = 'reflecting'; PS.reflection = { ...PR.first };
+    PS.policy = { should_ask: true, reason: '2 patterns repeat enough (at least 3 visits on 2+ days) and none was dismissed in the last 24 h.' };
+    PS.log = ['get_memory({})', 'find_patterns({"window": "week"})', 'propose_reflection({"pattern_id": "rising:etsy.com", ...})']; }
+  if (path.startsWith('/feedback')) { const R = PS.reflection;
+    if (body.action === 'accept') { R.status = 'accepted'; PS.mode = 'ambient'; tr('reflecting', 'accept', 'ambient'); }
+    if (body.action === 'edit') { R.status = 'edited'; R.insight = body.note; PS.mode = 'ambient'; tr('reflecting', 'edit', 'ambient'); }
+    if (body.action === 'reject') { tr('reflecting', 'reject', 'revising'); tr('revising', 'revised', 'reflecting'); PS.reflection = { ...PR.revised };
+      PS.log = ['get_memory({})  ← sees the rejection and the note', 'find_patterns({"window": "week"})', 'propose_reflection({"pattern_id": "rising:etsy.com", reframed ...})']; } }
+  if (path.startsWith('/reply')) { const R = PS.reflection; R.thread.push({ role: 'user', text: body.text });
+    tr('reflecting', 'reply', 'replying'); tr('replying', 'answered', 'reflecting');
+    if (R.thread.filter(t => t.role === 'user').length < 2) { R.insight += ' You told me: "' + body.text.slice(0, 60) + '".'; R.confidence = 'medium';
+      R.thread.push({ role: 'agent', ack: 'So it was the look of the glaze that held you.', question: 'What would you do with that, if you could?', ready: false }); }
+    else { R.insight = 'You stayed on a speckled mug because you like imperfect glazes, and you said you want to make something with your hands again.'; R.ready = true; R.confidence = 'high';
+      R.thread.push({ role: 'agent', ack: 'You want to make something with your hands again.', question: '', ready: true }); }
+    PS.log = ['get_memory({})', 'reply_to_person({"acknowledgement": ..., "revised_insight": ..., "ready_to_save": ' + R.ready + '})']; }
+  if (path.startsWith('/close')) { tr('reflecting', 'close', 'ambient'); PS.mode = 'ambient'; PS.reflection = null; }
+  if (path.startsWith('/pause')) PS.tracking.paused = body.paused;
+  return JSON.parse(JSON.stringify(PS));
+}
+
+refresh();
+if (!PREVIEW) setInterval(() => { if (!busy && S && S.mode === 'ambient' && !formMode) refresh(); }, 8000);
+</script>
+</body>
+</html>
