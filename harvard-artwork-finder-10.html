@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Artwork Finder — Harvard Art Museums</title>
+<style>
+  :root{ --bg:#000; --card:#0b0b0b; --ink:#fff; --muted:#8a8a8a; --line:#242424; }
+  *{box-sizing:border-box}
+  html{background:#000}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Helvetica Neue",Helvetica,Arial,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;
+       padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  main{max-width:820px;margin:0 auto;padding:36px 18px 80px}
+  h1{font-size:2rem;font-weight:700;margin:0 0 8px;letter-spacing:-.04em;line-height:1.05;text-transform:uppercase}
+  .sub{color:var(--muted);margin:0 0 32px;font-size:.9rem;max-width:56ch}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:2px;padding:20px;margin-bottom:14px}
+  label{display:block;font-size:.68rem;color:var(--muted);margin:0 0 8px;text-transform:uppercase;letter-spacing:.14em}
+  input[type=text],input[type=password],input[type=number],select{width:100%;padding:12px 0;border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent;color:var(--ink);font-size:1rem;outline:none;transition:border-color .15s;font-family:inherit}
+  select option{background:#000;color:#fff}
+  input:focus,select:focus{border-bottom-color:#fff}
+  input::placeholder{color:#555}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  .row + .row{margin-top:14px}
+  @media (max-width:560px){.row{grid-template-columns:1fr}}
+  .hint{font-size:.76rem;color:var(--muted);margin:8px 0 0}
+  .hint a{color:#fff;text-underline-offset:3px}
+  .btns{display:flex;gap:10px;flex-wrap:wrap}
+  button,.btn{appearance:none;border:1px solid #fff;background:transparent;color:#fff;padding:12px 18px;border-radius:0;font-size:.78rem;text-transform:uppercase;letter-spacing:.12em;cursor:pointer;font-family:inherit;transition:background .15s,color .15s;margin:0}
+  button:hover,.btn:hover{background:#fff;color:#000}
+  button.primary{background:#fff;color:#000;font-weight:700}
+  button.primary:hover{background:transparent;color:#fff}
+  button:disabled{opacity:.3;cursor:not-allowed}
+  button:disabled:hover{background:#fff;color:#000}
+  #drop{border:1px dashed #333;padding:26px;text-align:center;color:var(--muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.14em;transition:all .15s}
+  #drop.over{border-color:#fff;color:#fff}
+  #preview{max-width:100%;max-height:380px;display:none;margin:18px auto 0;filter:grayscale(1)}
+  #status{font-size:.78rem;color:var(--muted);min-height:1.3em;margin:14px 0 0;letter-spacing:.02em}
+  progress{width:100%;height:2px;margin-top:12px;display:none;appearance:none;border:0;background:var(--line)}
+  progress::-webkit-progress-bar{background:var(--line)} progress::-webkit-progress-value{background:#fff} progress::-moz-progress-bar{background:#fff}
+  .verdict{display:flex;align-items:center;gap:12px;font-size:1.2rem;font-weight:700;letter-spacing:-.02em;text-transform:uppercase}
+  .dot{width:12px;height:12px;border-radius:50%;flex:none;border:1px solid #fff}
+  .bar{height:2px;background:var(--line);margin-top:14px}
+  .bar>i{display:block;height:100%;background:#fff}
+  .match{display:grid;grid-template-columns:104px 1fr;gap:16px;padding:16px 0;border-top:1px solid var(--line)}
+  .match:first-of-type{border-top:0}
+  .match img{width:104px;height:104px;object-fit:cover;background:#111;filter:grayscale(1);transition:filter .2s}
+  .match img:hover{filter:none}
+  .match h3{margin:0 0 4px;font-size:1rem;font-weight:700;letter-spacing:-.01em}
+  .match .meta{color:var(--muted);font-size:.78rem}
+  .pill{display:inline-block;font-size:.62rem;padding:3px 9px;border:1px solid var(--line);margin-top:8px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted)}
+  .pill.good{background:#fff;color:#000;border-color:#fff;font-weight:700} .pill.maybe{color:#fff;border-color:#fff}
+  .match a{color:#fff;font-size:.78rem;text-underline-offset:3px}
+  details{margin-top:12px;font-size:.8rem;color:var(--muted)} summary{cursor:pointer;text-transform:uppercase;letter-spacing:.12em;font-size:.68rem}
+  .err{color:#fff;text-decoration:underline;text-decoration-style:wavy}
+  .kicker{font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+  .result{border-color:#fff}
+  .result h2{font-size:1.9rem;font-weight:700;letter-spacing:-.03em;line-height:1.1;margin:6px 0 6px}
+  .result .match{border-top:0;padding:10px 0 0}
+</style>
+</head>
+<body>
+<main>
+  <h1>Artwork<br>Finder</h1>
+  <p class="sub">Harvard Art Museums. Upload or snap a photo of a gallery. The page checks whether it contains an artwork, then tries to match it to an object in the collection. Everything runs in your browser.</p>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <label for="key">HAM API key</label>
+        <input id="key" type="password" autocomplete="off" placeholder="paste your key">
+      </div>
+      <div>
+        <label for="gallery">Gallery number(s)</label>
+        <input id="gallery" type="text" placeholder="e.g. 3610, 3600 — blank = all on view">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="limit">Max candidates to index</label>
+        <input id="limit" type="number" min="20" max="10000" step="10" value="300">
+      </div>
+      <div>
+        <label for="thresh">Artwork threshold (%)</label>
+        <input id="thresh" type="number" min="1" max="99" value="50">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="depth">Search depth</label>
+        <select id="depth">
+          <option value="fast">Fast (~14 views)</option>
+          <option value="deep">Thorough (~35 views)</option>
+        </select>
+      </div>
+      <div id="objidWrap" style="display:none">
+        <label for="objid">Debug: object number (e.g. 1980.52) or ID</label>
+        <input id="objid" type="text" placeholder="e.g. 1980.52">
+      </div>
+    </div>
+    <p class="hint">The collection is indexed in the background as soon as the key is set and cached, so repeat visits are instant. Add <b>?gpu=1</b> to the page address to try GPU acceleration.</p>
+  </div>
+
+  <div class="card">
+    <div id="drop">Drop a photo here, or use the buttons below</div>
+    <div class="btns" style="margin-top:14px">
+      <label class="btn">Take photo<input id="cam" type="file" accept="image/*" capture="environment" hidden></label>
+      <label class="btn">Upload photo<input id="file" type="file" accept="image/*" hidden></label>
+      <button id="go" class="primary" disabled>Identify</button>
+    </div>
+    <img id="preview" alt="Selected photo">
+    <progress id="prog" max="100" value="0"></progress>
+    <div id="status"></div>
+  </div>
+
+  <div id="out"></div>
+</main>
+
+<script type="module">
+/* ---------- library: transformers.js v2 (default) or v3 with WebGPU (?gpu=1) ---------- */
+const GPU = new URLSearchParams(location.search).has("gpu") && "gpu" in navigator;
+const T = await import(GPU
+  ? "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3"
+  : "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2");
+const { env, AutoProcessor, AutoTokenizer, CLIPVisionModelWithProjection, CLIPTextModelWithProjection, RawImage } = T;
+env.allowLocalModels = false;
+const MODEL = "Xenova/clip-vit-base-patch32";
+const $ = id => document.getElementById(id);
+const DEBUG = new URLSearchParams(location.search).has("debug");
+if (DEBUG) document.getElementById("objidWrap").style.display = "";
+
+/* ---------- settings ---------- */
+const FIELDS = ["key", "gallery", "limit", "thresh", "depth", "objid"];
+for (const id of FIELDS) {
+  try { const v = localStorage.getItem("ham_" + id); if (v) $(id).value = v; } catch {}
+  $(id).addEventListener("change", () => { try { localStorage.setItem("ham_" + id, $(id).value); } catch {} });
+}
+const settings = () => ({
+  key: $("key").value.trim(),
+  gallery: $("gallery").value.trim(),
+  limit: Math.max(20, Math.min(10000, parseInt($("limit").value) || 300)),
+  thresh: Math.max(1, Math.min(99, parseInt($("thresh").value) || 50)) / 100,
+  deep: $("depth").value === "deep",
+});
+
+/* ---------- helpers ---------- */
+let busy = false;
+const setStatus = (t, isErr) => { $("status").textContent = t; $("status").className = isErr ? "err" : ""; };
+const setProg = p => { const el = $("prog"); el.style.display = p == null ? "none" : "block"; if (p != null) el.value = p; };
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const secs = ms => (ms / 1000).toFixed(1) + "s";
+function normalize(a) {
+  const v = Float32Array.from(a); let n = 0;
+  for (let i = 0; i < v.length; i++) n += v[i] * v[i];
+  n = Math.sqrt(n) || 1; for (let i = 0; i < v.length; i++) v[i] /= n;
+  return v;
+}
+const dot = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
+
+/* ---------- IndexedDB: per-object embeddings + whole prepared pools ---------- */
+const dbp = new Promise(res => {
+  try {
+    const r = indexedDB.open("ham-finder", 3);
+    r.onupgradeneeded = () => { for (const s of ["emb", "pool"]) if (!r.result.objectStoreNames.contains(s)) r.result.createObjectStore(s); };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => res(null);
+  } catch { res(null); }
+});
+async function dbGet(store, key) {
+  const db = await dbp; if (!db) return null;
+  return new Promise(res => { const q = db.transaction(store).objectStore(store).get(key); q.onsuccess = () => res(q.result || null); q.onerror = () => res(null); });
+}
+async function dbPut(store, key, val) {
+  const db = await dbp; if (!db) return;
+  try { db.transaction(store, "readwrite").objectStore(store).put(val, key); } catch {}
+}
+
+/* ---------- model loading (starts at page load, includes a warm-up pass) ---------- */
+let modelsP = null, backend = "wasm";
+function loadModels() {
+  if (modelsP) return modelsP;
+  modelsP = (async () => {
+    setStatus("Loading vision model (first time ~90 MB, then cached)…");
+    const cb = p => { if (p.status === "progress") setProg(Math.round(p.progress)); };
+    const [processor, tokenizer] = await Promise.all([AutoProcessor.from_pretrained(MODEL), AutoTokenizer.from_pretrained(MODEL)]);
+    const attempts = GPU ? [{ device: "webgpu", dtype: "fp32" }, { dtype: "q8" }] : [{}];
+    let m = null;
+    for (const o of attempts) {
+      try {
+        const [vision, text] = await Promise.all([
+          CLIPVisionModelWithProjection.from_pretrained(MODEL, { ...o, progress_callback: cb }),
+          CLIPTextModelWithProjection.from_pretrained(MODEL, { ...o, progress_callback: cb }),
+        ]);
+        m = { processor, tokenizer, vision, text };
+        // warm-up: the first inference is always the slowest (kernel compilation); do it now, not on your first photo
+        const c = document.createElement("canvas"); c.width = c.height = 224; c.getContext("2d").fillRect(0, 0, 224, 224);
+        await runVision(m, [c]);
+        backend = o.device || "wasm";
+        break;
+      } catch (e) { console.warn("Model attempt failed", o, e); m = null; }
+    }
+    if (!m) throw new Error("Could not load the vision model.");
+    setProg(null);
+    setStatus(`Model ready (${backend}).`);
+    return m;
+  })();
+  modelsP.catch(() => { modelsP = null; });
+  return modelsP;
+}
+
+/* canvases → one batched forward pass → normalised vectors (no JPEG encode/decode round-trips) */
+async function runVision(m, canvases) {
+  const imgs = canvases.map(c => {
+    const d = c.getContext("2d").getImageData(0, 0, c.width, c.height);
+    return new RawImage(d.data, c.width, c.height, 4).rgb();
+  });
+  const inputs = await m.processor(imgs);
+  const { image_embeds } = await m.vision(inputs);
+  const d = image_embeds.dims[1];
+  return canvases.map((_, i) => normalize(image_embeds.data.slice(i * d, (i + 1) * d)));
+}
+let embedChain = Promise.resolve();   // one forward pass at a time; downloads still run in parallel
+function embedCanvases(canvases) {
+  const p = embedChain.then(async () => runVision(await loadModels(), canvases));
+  embedChain = p.catch(() => {});
+  return p;
+}
+
+async function embedTexts(list) {
+  const { tokenizer, text } = await loadModels();
+  const t = tokenizer(list, { padding: true, truncation: true });
+  const { text_embeds } = await text(t);
+  const d = text_embeds.dims[1];
+  return list.map((_, i) => normalize(text_embeds.data.slice(i * d, (i + 1) * d)));
+}
+
+/* ---------- Step 1: is it an artwork? (CLIP zero-shot) ---------- */
+const ART = [
+  "a photo of a painting hanging on a museum wall",
+  "a photo of a framed artwork in an art gallery",
+  "a photo of a sculpture in a museum",
+  "a photo of a drawing or print in a gallery",
+  "a photo of a work of art",
+  "a photo of an ancient artifact displayed in a museum",
+];
+const NOT_ART = [
+  "a photo of an empty wall",
+  "a photo of a person",
+  "a photo of a room interior",
+  "a photo of a street or building exterior",
+  "a photo of a museum wall label with text",
+  "a photo of a computer screen or document",
+  "a photo of food",
+  "a photo of a pet or animal",
+  "a photo of a car",
+  "a photo of a plant or landscape",
+];
+let textEmbP = null;
+async function artworkScore(imgVec) {
+  textEmbP ||= embedTexts([...ART, ...NOT_ART]);
+  const textEmb = await textEmbP;
+  const logits = textEmb.map(t => 100 * dot(imgVec, t));
+  const m = Math.max(...logits);
+  const ex = logits.map(l => Math.exp(l - m));
+  const sum = ex.reduce((a, b) => a + b, 0);
+  const probs = ex.map(e => e / sum);
+  const art = probs.slice(0, ART.length).reduce((a, b) => a + b, 0);
+  const top = [...ART, ...NOT_ART].map((p, i) => ({ p, v: probs[i] })).sort((a, b) => b.v - a.v)[0];
+  return { art, top };
+}
+
+/* ---------- photo → crops (canvases only; first the 2 views needed for the art check) ---------- */
+let photoImg = null;
+function makeViews(im, deep) {
+  const scale = Math.min(1, 768 / Math.max(im.naturalWidth, im.naturalHeight));
+  const W = Math.round(im.naturalWidth * scale), H = Math.round(im.naturalHeight * scale);
+  const base = document.createElement("canvas"); base.width = W; base.height = H;
+  base.getContext("2d").drawImage(im, 0, 0, W, H);
+  const crop = (name, x, y, w, h) => {
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(w)); c.height = Math.max(1, Math.round(h));
+    c.getContext("2d").drawImage(base, x, y, w, h, 0, 0, c.width, c.height);
+    return { name, canvas: c };
+  };
+  const first = [crop("whole", 0, 0, W, H), crop("centre", W * .2, H * .2, W * .6, H * .6)];
+  // Overlapping SQUARE windows at several sizes: a framed painting that fills only ~25% of the photo
+  // (next to a person, say) still gets a window that mostly contains just the painting.
+  const rest = [];
+  for (const f of (deep ? [0.4, 0.55, 0.8] : [0.55])) {
+    const side = Math.round(f * Math.min(W, H));
+    const nx = Math.max(1, Math.ceil((W - side) / (side * 0.5)) + 1);
+    const ny = Math.max(1, Math.ceil((H - side) / (side * 0.5)) + 1);
+    for (let iy = 0; iy < ny; iy++) for (let ix = 0; ix < nx; ix++) {
+      const x = nx === 1 ? (W - side) / 2 : ix * (W - side) / (nx - 1);
+      const y = ny === 1 ? (H - side) / 2 : iy * (H - side) / (ny - 1);
+      rest.push(crop(`${Math.round(f * 100)}% window`, x, y, side, side));
+    }
+  }
+  return { first, rest };
+}
+
+/* ---------- Step 2: HAM candidate pool (fetched once, embedded in batches, cached whole) ---------- */
+const FIELDS_API = "objectid,title,people,dated,url,primaryimageurl,classification,images";
+async function fetchObjects(key, gallery, limit) {
+  // Accept one or several gallery numbers ("3610, 3600 3500"); query each separately and merge.
+  const gs = gallery.split(/[\s,;|]+/).filter(Boolean);
+  if (!gs.length) gs.push("any");
+  const objs = [], seen = new Set();
+  for (const g of gs) {
+    let url = `https://api.harvardartmuseums.org/object?apikey=${encodeURIComponent(key)}&hasimage=1&gallery=${encodeURIComponent(g)}&size=100&sort=objectid&fields=${FIELDS_API}`;
+    while (url && objs.length < limit) {
+      const r = await fetch(url);
+      if (r.status === 401 || r.status === 403) throw new Error("The HAM API rejected the key (check it is correct).");
+      if (!r.ok) throw new Error("HAM API error " + r.status);
+      const j = await r.json();
+      for (const o of j.records || []) if (o.primaryimageurl && !seen.has(o.objectid)) { seen.add(o.objectid); o.iiif = (o.images || [])[0]?.iiifbaseuri || ""; delete o.images; objs.push(o); }
+      url = j.info && j.info.next;
+      if (!busy) setStatus(`Fetching object list… ${Math.min(objs.length, limit)}`);
+    }
+  }
+  return objs.slice(0, limit);
+}
+const thumbUrl = o => o.primaryimageurl + (o.primaryimageurl.includes("?") ? "&" : "?") + "height=224";
+async function urlToCanvas(url) {
+  const r = await fetch(url); if (!r.ok) throw new Error("HTTP " + r.status);
+  const bmp = await createImageBitmap(await r.blob());
+  const c = document.createElement("canvas"); c.width = bmp.width; c.height = bmp.height;
+  c.getContext("2d").drawImage(bmp, 0, 0); bmp.close?.();
+  return c;
+}
+
+async function loadThumb(o) {
+  const urls = [];
+  if (o.iiif) urls.push(`${o.iiif}/full/,224/0/default.jpg`);
+  urls.push(thumbUrl(o));
+  let err;
+  for (const u of urls) { try { return await urlToCanvas(u); } catch (e) { err = e; } }
+  throw err;
+}
+
+const poolPromises = new Map();
+function getPool(key, gallery, limit) {
+  const id = `v2|${gallery}|${limit}`;
+  if (!poolPromises.has(id)) {
+    const p = buildPool(key, gallery, limit, id);
+    p.catch(() => poolPromises.delete(id));
+    poolPromises.set(id, p);
+  }
+  return poolPromises.get(id);
+}
+async function buildPool(key, gallery, limit, id) {
+  const hit = await dbGet("pool", id);                       // whole pool cached → no API calls, no image fetches
+  if (hit && hit.items?.length && Date.now() - hit.ts < 7 * 864e5) return hit.items;
+
+  const objs = await fetchObjects(key, gallery, limit);
+  if (!objs.length) throw new Error(gallery ? `No objects with images found on view in gallery "${gallery}".` : "No on-view objects with images were returned.");
+
+  const pool = []; const todo = []; const failedObjs = []; let failed = 0;
+  const cachedVecs = await Promise.all(objs.map(o => dbGet("emb", o.objectid)));
+  objs.forEach((o, i) => cachedVecs[i] ? pool.push({ meta: o, vec: cachedVecs[i] }) : todo.push(o));
+  let done = pool.length;
+
+  // 6 workers x 4 images = up to 24 downloads in flight; each worker embeds its mini-batch as soon as it arrives.
+  let next = 0;
+  const worker = async () => {
+    for (;;) {
+      const i = next; if (i >= todo.length) return; next += 4;
+      const batch = todo.slice(i, i + 4);
+      const settled = await Promise.allSettled(batch.map(o => loadThumb(o)));
+      const ok = [], cans = [];
+      settled.forEach((r, j) => { if (r.status === "fulfilled") { ok.push(batch[j]); cans.push(r.value); } else { failed++; failedObjs.push(batch[j]); } });
+      if (cans.length) {
+        const vecs = await embedCanvases(cans);
+        ok.forEach((o, j) => { pool.push({ meta: o, vec: vecs[j] }); dbPut("emb", o.objectid, vecs[j]); });
+      }
+      done += batch.length;
+      setProg(Math.round(100 * done / objs.length));
+      setStatus(`Indexing gallery ${done}/${objs.length}${failed ? ` (${failed} failed)` : ""} — first time only, cached afterwards…`);
+    }
+  };
+  await Promise.all(Array.from({ length: 6 }, worker));
+  setProg(null);
+  if (!pool.length) throw new Error("Could not load any collection images in the browser (the image server may block cross-origin requests).");
+  pool.failed = failedObjs;
+  dbPut("pool", id, { ts: Date.now(), items: pool });
+  return pool;
+}
+
+/* background preparation: runs as soon as a key is present, so Identify doesn't wait on it */
+let prepTimer;
+function schedulePrepare() {
+  clearTimeout(prepTimer);
+  prepTimer = setTimeout(async () => {
+    const s = settings(); if (!s.key) return;
+    try {
+      await loadModels();
+      await getPool(s.key, s.gallery, s.limit);
+      if (!busy) setStatus("Collection ready. Pick a photo.");
+    } catch (e) { if (!busy) setStatus(e.message || String(e), true); setProg(null); }
+  }, 500);
+}
+["key", "gallery", "limit"].forEach(id => $(id).addEventListener("change", schedulePrepare));
+loadModels().catch(e => setStatus(e.message, true));
+schedulePrepare();
+
+/* ---------- diagnostic: objects on view in the gallery that have NO image online (they can't be matched) ---------- */
+async function noImageObjects(key, gallery) {
+  const gs = gallery.split(/[\s,;|]+/).filter(Boolean);
+  const missing = []; let total = 0;
+  for (const g of gs) {
+    let url = `https://api.harvardartmuseums.org/object?apikey=${encodeURIComponent(key)}&gallery=${encodeURIComponent(g)}&size=100&sort=objectid&fields=objectid,title,people,primaryimageurl,url,classification,medium,dated`;
+    for (let page = 0; url && page < 5; page++) {
+      const r = await fetch(url); if (!r.ok) break;
+      const j = await r.json();
+      if (page === 0) total += (j.info && j.info.totalrecords) || 0;
+      for (const o of j.records || []) if (!o.primaryimageurl) missing.push(o);
+      url = j.info && j.info.next;
+    }
+  }
+  return { total, missing };
+}
+
+/* ---------- diagnostic: test one known object against the photo ---------- */
+async function checkObject(s, oid, pool, vecs, views) {
+  const isId = /^\d+$/.test(oid);   // pure digits = internal ID; anything like "1980.52" = object (accession) number
+  const url = isId
+    ? `https://api.harvardartmuseums.org/object/${encodeURIComponent(oid)}?apikey=${encodeURIComponent(s.key)}`
+    : `https://api.harvardartmuseums.org/object?apikey=${encodeURIComponent(s.key)}&objectnumber=${encodeURIComponent(oid)}&size=1`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`Object ${oid}: API error ${r.status}`);
+  let o = await r.json();
+  if (!isId) { o = (o.records || [])[0]; if (!o) throw new Error(`No object found with object number “${oid}”.`); }
+  const who = (o.people || []).map(p => p.name).join(", ");
+  const g = o.gallery ? `${o.gallery.gallerynumber ?? o.gallery.galleryid ?? "?"}${o.gallery.name ? " — " + o.gallery.name : ""}` : "none listed (not on view per the API)";
+  o.iiif = (o.images || [])[0]?.iiifbaseuri || "";
+  const hasImg = !!o.primaryimageurl;
+  const inPool = pool.some(p => String(p.meta.objectid) === String(o.objectid));
+  let sim = null, region = "", rank = null, thumb = "", imgErr = "";
+  if (hasImg) {
+    try {
+      const [v] = await embedCanvases([await loadThumb(o)]);
+      let bi = 0; sim = -1;
+      vecs.forEach((x, i) => { const d = dot(x, v); if (d > sim) { sim = d; bi = i; } });
+      region = views[bi].name; thumb = views[bi].canvas.toDataURL("image/jpeg", 0.7);
+      const all = pool.map(pp => Math.max(...vecs.map(x => dot(x, pp.vec))));
+      rank = 1 + all.filter(a => a > sim).length;
+    } catch (e) { sim = null; imgErr = e.message || String(e); }
+  }
+  let verdict;
+  if (!hasImg) verdict = "The API has no image for this object, so photo matching cannot find it. This is a data limit.";
+  else if (imgErr) verdict = "Its image could not be loaded in the browser (" + imgErr + ").";
+  else if (!inPool) verdict = `It is NOT in the searched pool (gallery filter “${s.gallery || "any"}” plus has-image). Against your photo it scores ${sim.toFixed(3)}, which would rank #${rank}. The pool is the problem.`;
+  else if (rank === 1) verdict = `It is the top result at ${sim.toFixed(3)}, but under the confidence cutoff. Matching works; the cutoff is too strict for photos like this.`;
+  else verdict = `It is in the pool but ranks #${rank} of ${pool.length} (similarity ${sim.toFixed(3)}). This is a matching problem, not a data problem.`;
+  return `<div class="card"><div class="verdict">Object ${esc(oid)} check</div>
+    <div class="match"><img src="${esc(hasImg ? thumbUrl(o) : "")}" alt="">
+    <div><h3>${esc(o.title || "Untitled")}</h3>
+    <div class="meta">${esc(who || "Unknown artist")}${o.dated ? " · " + esc(o.dated) : ""}${o.classification ? " · " + esc(o.classification) : ""}</div>
+    <div class="meta">Gallery per API: ${esc(g)}</div>
+    <div class="meta">Image in API: ${hasImg ? "yes" : "NO"}${o.imagepermissionlevel != null ? " · permission level " + esc(o.imagepermissionlevel) : ""} · in searched pool: ${inPool ? "yes" : "NO"}</div>
+    ${sim != null ? `<div class="meta">Similarity to your photo ${sim.toFixed(3)} · best view “${esc(region)}” · rank #${rank}</div>
+    <div style="margin-top:8px;display:flex;align-items:center;gap:8px"><img style="width:48px;height:48px;object-fit:cover" src="${thumb}" alt=""><span class="meta">part of your photo it matched best</span></div>` : ""}
+    </div></div><p class="hint"><b>${esc(verdict)}</b></p></div>`;
+}
+
+/* ---------- main flow ---------- */
+const missingCache = new Map();
+function whoOf(o) { return (o.people || []).map(p => p.name).join(", "); }
+function promptFor(o) {
+  const who = whoOf(o);
+  return `${o.title || "untitled"}${who ? ", by " + who : ""}${o.classification ? ", " + String(o.classification).toLowerCase() : ""}${o.medium ? ", " + o.medium : ""}`.slice(0, 220);
+}
+function getMissing(key, gallery) {
+  if (!missingCache.has(gallery)) {
+    const p = noImageObjects(key, gallery).then(r => ({ ...r, missing: r.missing.slice(0, 60), tv: null }));
+    p.catch(() => missingCache.delete(gallery));
+    missingCache.set(gallery, p);
+  }
+  return missingCache.get(gallery);
+}
+const LEVEL = { High: "High confidence", Medium: "Medium confidence", Possible: "Possible match", Low: "Low-confidence guess" };
+
+function resultCardHtml(res, s, closest) {
+  if (!res) return `<div class="card result"><div class="kicker">Result</div><h2>I couldn’t identify this work confidently</h2>
+    <p class="hint">Nothing ${s.gallery ? "in gallery " + esc(s.gallery) : "in the searched pool"} matched well enough to name it. The work may not be in this gallery’s list, or may have no public image.</p>
+    ${closest ? `<p class="hint">Closest guess (low confidence, probably wrong): <b style="color:#fff">${esc(closest.title || "Untitled")}</b>${whoOf(closest) ? " — " + esc(whoOf(closest)) : ""}</p>` : ""}</div>`;
+  const o = res.o, who = whoOf(o);
+  const how = res.src === "image"
+    ? `Matched by image · similarity ${res.sim.toFixed(3)}`
+    : `Matched by title · this work has no public image (${Math.round(res.p * 100)}% among the imageless works here)`;
+  return `<div class="card result"><div class="kicker">${res.level === "High" || res.level === "Medium" ? "Your work is" : "Possible match"}</div>
+    <div class="match" style="grid-template-columns:${o.primaryimageurl ? "120px 1fr" : "1fr"}">
+      ${o.primaryimageurl ? `<img style="width:120px;height:120px" src="${esc(thumbUrl(o))}" alt="">` : ""}
+      <div><h2>${esc(o.title || "Untitled")}</h2>
+        <div class="meta">${esc(who || "Unknown artist")}${o.dated ? " · " + esc(o.dated) : ""}${o.classification ? " · " + esc(o.classification) : ""}</div>
+        <span class="pill ${res.level === "High" ? "good" : "maybe"}">${LEVEL[res.level]}</span>
+        <div class="meta" style="margin-top:6px">${esc(how)}</div>
+        ${o.url ? `<div style="margin-top:6px"><a href="${esc(o.url)}" target="_blank" rel="noopener">View collection page ↗</a></div>` : ""}
+      </div></div></div>`;
+}
+
+async function identify() {
+  busy = true; $("go").disabled = true; $("out").innerHTML = "";
+  try {
+    const s = settings();
+    if (!s.key) throw new Error("Paste your HAM API key first.");
+    const t0 = performance.now();
+
+    setStatus("Looking at the photo…");
+    const { first, rest } = makeViews(photoImg, s.deep);
+    const v1 = await embedCanvases(first.map(v => v.canvas));
+    const whole = await artworkScore(v1[0]);
+    const centre = await artworkScore(v1[1]);                         // a wall with one painting can read as "wall" at full frame
+    const artBest = Math.max(whole.art, centre.art);
+    const isArt = artBest >= s.thresh;
+    const t1 = performance.now();
+    const pct = Math.round(artBest * 100);
+    const artLine = `Artwork check: ${pct}% (threshold ${Math.round(s.thresh * 100)}%), closest description “${esc(whole.top.p.replace(/^a photo of /, ""))}”, ${secs(t1 - t0)} on ${backend}.`;
+
+    if (!isArt) {
+      $("out").innerHTML = `<div class="card result"><div class="kicker">Result</div><h2>This doesn’t look like an artwork</h2><p class="hint">${artLine}</p></div>`;
+      setStatus("Done."); return;
+    }
+
+    setStatus("Matching against the collection…");
+    const missingP = s.gallery ? getMissing(s.key, s.gallery).catch(() => null) : Promise.resolve(null);
+    const [vrest, pool, info] = await Promise.all([embedCanvases(rest.map(v => v.canvas)), getPool(s.key, s.gallery, s.limit), missingP]);
+    const views = [...first, ...rest], vecs = [...v1, ...vrest];
+    const failedObjs = pool.failed || [];
+
+    // 1) image matching against works that have a public image
+    const scored = pool.map(({ meta, vec }) => {
+      let best = -1, where = "", bi = 0;
+      for (let i = 0; i < vecs.length; i++) { const sim = dot(vecs[i], vec); if (sim > best) { best = sim; where = views[i].name; bi = i; } }
+      return { meta, sim: best, where, bi };
+    }).sort((a, b) => b.sim - a.sim).slice(0, 5);
+    const topImg = scored[0];
+    const margin = scored.length > 1 ? topImg.sim - scored[1].sim : 0;
+    // Calibrated on real gallery photos: correct matches scored ~0.79-0.84, wrong top results ~0.66-0.73.
+    const strongImg = topImg.sim >= 0.82 || (topImg.sim >= 0.76 && margin >= 0.05);
+    const maybeImg = topImg.sim >= 0.74;
+
+    // 2) title matching against works that have NO public image (rights-restricted)
+    let guesses = [];
+    if (info && info.missing.length) {
+      info.tv ||= await embedTexts(info.missing.map(promptFor));
+      const sc = info.tv.map(t => Math.max(...vecs.map(v => dot(v, t))));
+      const mx = Math.max(...sc), ex = sc.map(x => Math.exp(100 * (x - mx))), z = ex.reduce((a, b) => a + b, 0);
+      guesses = sc.map((x, i) => ({ o: info.missing[i], p: ex[i] / z })).sort((a, b) => b.p - a.p).slice(0, 5);
+    }
+    const topTxt = guesses[0];
+
+    // 3) pick the single answer
+    let res = null;
+    if (strongImg) res = { src: "image", o: topImg.meta, sim: topImg.sim, level: "High" };
+    else if (topTxt && topTxt.p >= 0.75 && topImg.sim < 0.80) res = { src: "title", o: topTxt.o, p: topTxt.p, level: "Medium" };
+    else if (maybeImg) res = { src: "image", o: topImg.meta, sim: topImg.sim, level: "Possible" };
+    const t2 = performance.now();
+
+    const closest = (topTxt && topTxt.p >= 0.35 && topImg.sim < 0.74) ? topTxt.o : topImg.meta;
+    let html = resultCardHtml(res, s, closest);
+    if (!res && failedObjs.length) html += `<div class="card"><div class="kicker">Could not be compared</div>
+      <p class="hint">${failedObjs.length} works in this gallery have an image that failed to load in the browser, so they were skipped. If your work is one of them, that is why:</p>
+      ${failedObjs.slice(0, 15).map(o => `<div class="meta" style="padding:3px 0">${o.url ? `<a href="${esc(o.url)}" target="_blank" rel="noopener">${esc(o.title || "Untitled")}</a>` : esc(o.title || "Untitled")}${whoOf(o) ? " — " + esc(whoOf(o)) : ""}</div>`).join("")}</div>`;
+
+    // other possibilities (everything except the chosen answer)
+    const sameObj = (o) => res && String(o.objectid) === String(res.o.objectid);
+    const imgRows = scored.filter(r => !sameObj(r.meta)).slice(0, 4).map(r => {
+      const o = r.meta;
+      return `<div class="match"><img loading="lazy" src="${esc(thumbUrl(o))}" alt="">
+        <div><h3>${esc(o.title || "Untitled")}</h3>
+        <div class="meta">${esc(whoOf(o) || "Unknown artist")}${o.dated ? " · " + esc(o.dated) : ""}${o.classification ? " · " + esc(o.classification) : ""}</div>
+        <div class="meta">image similarity ${r.sim.toFixed(3)} · matched “${esc(r.where)}”</div>
+        <div style="margin-top:8px;display:flex;align-items:center;gap:8px"><img style="width:48px;height:48px;object-fit:cover" src="${views[r.bi].canvas.toDataURL("image/jpeg", 0.7)}" alt=""><span class="meta">part of your photo it matched</span></div>
+        ${o.url ? `<div><a href="${esc(o.url)}" target="_blank" rel="noopener">View collection page ↗</a></div>` : ""}</div></div>`;
+    }).join("");
+    const txtRows = guesses.filter(g => !sameObj(g.o)).slice(0, 3).map(g => {
+      const t = g.o.url ? `<a href="${esc(g.o.url)}" target="_blank" rel="noopener">${esc(g.o.title || "Untitled")}</a>` : esc(g.o.title || "Untitled");
+      return `<div class="meta" style="padding:5px 0"><b style="color:#fff">${Math.round(g.p * 100)}%</b> · ${t}${whoOf(g.o) ? " — " + esc(whoOf(g.o)) : ""} <span class="meta">(no image, matched by title)</span></div>`;
+    }).join("");
+    if (imgRows || txtRows) html += `<div class="card"><div class="kicker">Other possibilities</div>${imgRows}${txtRows ? `<div style="margin-top:12px">${txtRows}</div>` : ""}</div>`;
+
+    // details
+    const noImgList = info ? info.missing.slice(0, 40).map(o => `<div class="meta" style="padding:3px 0">${o.url ? `<a href="${esc(o.url)}" target="_blank" rel="noopener">${esc(o.title || "Untitled")}</a>` : esc(o.title || "Untitled")}${whoOf(o) ? " — " + esc(whoOf(o)) : ""}</div>`).join("") : "";
+    html += `<div class="card"><details><summary>Details</summary>
+      <p>${artLine}</p>
+      <p>Searched ${pool.length} works with images${s.gallery ? ` in gallery ${esc(s.gallery)}` : ""} using ${views.length} views in ${secs(t2 - t1)}. Total ${secs(t2 - t0)}.</p>
+      ${failedObjs.length ? `<p>${failedObjs.length} works had images that failed to load.</p>` : ""}
+      ${info ? `<p>${info.missing.length} of ${info.total} works listed for gallery ${esc(s.gallery)} have no public image and are matched by title instead.</p>${noImgList}` : ""}
+      </details></div>`;
+    $("out").innerHTML = html;
+    setStatus("Done.");
+
+    const oid = DEBUG ? $("objid").value.trim() : "";
+    if (oid) {
+      try { $("out").insertAdjacentHTML("beforeend", await checkObject(s, oid, pool, vecs, views)); }
+      catch (e) { console.warn(e); $("out").insertAdjacentHTML("beforeend", `<div class="card"><p class="hint err">${esc(e.message || e)}</p></div>`); }
+    }
+  } catch (e) {
+    console.error(e);
+    setStatus(e.message || String(e), true); setProg(null);
+  } finally { busy = false; $("go").disabled = !photoImg; }
+}
+
+/* ---------- photo input ---------- */
+async function takeFile(f) {
+  if (!f || !f.type.startsWith("image/")) return;
+  try {
+    const url = URL.createObjectURL(f);
+    const im = new Image();
+    await new Promise((res, rej) => { im.onload = res; im.onerror = rej; im.src = url; });
+    photoImg = im;
+    const p = $("preview"); p.src = url; p.style.display = "block";
+    $("go").disabled = false; $("out").innerHTML = ""; setStatus("Photo ready. Tap Identify.");
+  } catch { setStatus("Couldn’t read that image.", true); }
+}
+$("cam").addEventListener("change", e => takeFile(e.target.files[0]));
+$("file").addEventListener("change", e => takeFile(e.target.files[0]));
+$("go").addEventListener("click", identify);
+const drop = $("drop");
+["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => takeFile(e.dataTransfer.files[0]));
+document.addEventListener("paste", e => { const f = [...(e.clipboardData?.files || [])][0]; if (f) takeFile(f); });
+</script>
+</body>
+</html>
